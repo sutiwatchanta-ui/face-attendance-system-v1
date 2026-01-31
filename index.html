@@ -45,6 +45,12 @@
             background: rgba(31, 41, 55, 0.7);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        /* Mirror video for selfie mode */
+        .video-mirror {
+            transform: scaleX(-1);
+            -webkit-transform: scaleX(-1);
+        }
     </style>
     <script>
         tailwind.config = {
@@ -79,10 +85,14 @@
             </div>
             <div class="flex items-center gap-3">
                 <nav class="flex items-center p-1 bg-white/50 dark:bg-gray-700/50 rounded-xl backdrop-blur-sm">
-                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200">ภาพรวม</button>
-                    <button onclick="switchTab('attendance')" id="tab-attendance" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200">เช็คชื่อ</button>
+                    <button onclick="switchTab('dashboard')" id="tab-dashboard" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-1">
+                        <i data-lucide="pie-chart" class="w-4 h-4"></i> สถิติ
+                    </button>
+                    <button onclick="switchTab('attendance')" id="tab-attendance" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-1">
+                        <i data-lucide="camera" class="w-4 h-4"></i> เช็คชื่อ
+                    </button>
                     <button onclick="checkAdminAccess('manage')" id="tab-manage" class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center gap-1">
-                        <i data-lucide="lock" class="w-3 h-3"></i> จัดการข้อมูล
+                        <i data-lucide="lock" class="w-4 h-4"></i> จัดการข้อมูล
                     </button>
                 </nav>
                 <button onclick="toggleTheme()" type="button" class="bg-white/50 dark:bg-gray-700/50 hover:bg-white dark:hover:bg-gray-600 rounded-xl p-2.5 transition-all shadow-sm">
@@ -95,16 +105,32 @@
         <!-- Dynamic Content Area -->
         <main id="main-content" class="relative">
             
-            <!-- Dashboard Tab (หน้าแรก) -->
+            <!-- Dashboard Tab (หน้าสถิติ) -->
             <div id="content-dashboard" class="space-y-6 animate-fade-in">
-                 <!-- Stats Cards -->
+                 <!-- Stats Filter & Cards -->
                  <div class="glass-panel p-6 rounded-2xl shadow-sm">
                      <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
                         <div class="flex items-center gap-2">
                              <i data-lucide="bar-chart-2" class="text-pink-500"></i>
-                             <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">สถิติวันนี้</h2>
+                             <h2 class="text-lg font-bold text-gray-700 dark:text-gray-200">สถิติการเข้าเรียน</h2>
                         </div>
-                        <input type="date" id="dashboard-date" class="border-2 border-purple-100 focus:border-purple-300 rounded-xl p-2 bg-white/80 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 outline-none transition-colors">
+                        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+                            <!-- Subject Filter -->
+                            <div class="relative w-full sm:w-48">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                    <i data-lucide="book" class="text-gray-400 w-4 h-4"></i>
+                                </div>
+                                <select id="dashboard-subject-filter" onchange="loadAttendanceDataForDashboard()" class="w-full pl-9 pr-3 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 focus:border-pink-500 outline-none text-sm appearance-none">
+                                    <option value="">ทุกรายวิชา</option>
+                                    <!-- Dynamic Options -->
+                                </select>
+                                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                    <i data-lucide="chevron-down" class="text-gray-400 w-4 h-4"></i>
+                                </div>
+                            </div>
+                            <!-- Date Filter -->
+                            <input type="date" id="dashboard-date" class="w-full sm:w-auto border-2 border-purple-100 focus:border-purple-300 rounded-xl p-2 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 outline-none transition-colors text-sm">
+                        </div>
                     </div>
                     
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -210,9 +236,11 @@
                             <p id="video-loading-text" class="mt-4 text-gray-500 brand-font">กำลังเตรียมกล้อง...</p>
                         </div>
 
+                        <!-- Video Wrapper (Shown when ready) -->
                         <div class="w-full max-w-4xl mx-auto bg-black rounded-xl overflow-hidden relative aspect-video hidden shadow-2xl" id="video-wrapper">
-                            <video id="video" class="w-full h-full object-cover transform scale-x-[-1]" autoplay muted playsinline></video>
-                            <canvas id="overlay" class="absolute top-0 left-0 transform scale-x-[-1]"></canvas>
+                            <!-- Added style directly to ensure mirror effect works -->
+                            <video id="video" class="w-full h-full object-cover video-mirror" autoplay muted playsinline></video>
+                            <canvas id="overlay" class="absolute top-0 left-0 video-mirror"></canvas>
                             
                             <!-- Success Overlay -->
                             <div id="scan-success-overlay" class="absolute inset-0 bg-green-500/80 backdrop-blur-sm flex items-center justify-center hidden animate-fade-in z-20">
@@ -263,20 +291,22 @@
                                 <i data-lucide="settings" class="w-4 h-4"></i> ตั้งค่าระบบ
                             </button>
                             <button onclick="openStudentModal()" class="bg-gradient-to-r from-pink-500 to-purple-500 text-white px-5 py-2 rounded-xl hover:from-pink-600 hover:to-purple-600 shadow-md flex items-center gap-2 transition-all flex-1 sm:flex-none justify-center">
-                                <i data-lucide="user-plus" class="w-5 h-5"></i> <span>เพิ่มนักเรียน</span>
+                                <i data-lucide="user-plus" class="w-5 h-5"></i> <span>เพิ่มข้อมูล</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- Students Table Grouped -->
                     <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50">
-                        <table class="w-full text-left min-w-[700px]">
+                        <table class="w-full text-left min-w-[800px]">
                             <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 uppercase text-sm font-semibold">
                                 <tr>
-                                    <th class="p-4 rounded-tl-xl">รูปภาพ</th>
-                                    <th class="p-4">รหัสนักเรียน</th>
+                                    <th class="p-4 rounded-tl-xl w-24">รูปภาพ</th>
+                                    <th class="p-4 w-20">เลขที่</th>
+                                    <th class="p-4 w-32">รหัสนักเรียน</th>
                                     <th class="p-4">ชื่อ-สกุล</th>
-                                    <th class="p-4 text-center rounded-tr-xl">จัดการ</th>
+                                    <th class="p-4">วิชา</th>
+                                    <th class="p-4 text-center rounded-tr-xl w-32">จัดการ</th>
                                 </tr>
                             </thead>
                             <tbody id="student-table-body" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -341,17 +371,30 @@
                 <input type="hidden" id="student-row-index">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="space-y-4">
-                        <div>
-                            <label for="student-id" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">รหัสนักเรียน</label>
-                            <input type="text" id="student-id" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" required>
+                        <div class="flex gap-4">
+                            <div class="w-1/3">
+                                <label for="student-no" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">เลขที่</label>
+                                <input type="number" id="student-no" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" placeholder="1">
+                            </div>
+                            <div class="w-2/3">
+                                <label for="student-id" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">รหัสนักเรียน</label>
+                                <input type="text" id="student-id" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" required placeholder="0001">
+                            </div>
                         </div>
                         <div>
                             <label for="student-name" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">ชื่อ-สกุล</label>
                             <input type="text" id="student-name" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" required>
                         </div>
-                        <div>
-                            <label for="student-class" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">ชั้นเรียน (เช่น ม.1/1)</label>
-                            <input type="text" id="student-class" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" required>
+                        <div class="flex gap-4">
+                             <div class="w-1/2">
+                                <label for="student-class" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">ชั้นเรียน</label>
+                                <input type="text" id="student-class" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" required placeholder="ม.1/1">
+                             </div>
+                             <div class="w-1/2">
+                                <label for="student-subject" class="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">วิชา</label>
+                                <input type="text" id="student-subject" list="modal-subject-list" class="w-full border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 rounded-xl p-3 focus:border-pink-500 outline-none" placeholder="วิทย์">
+                                <datalist id="modal-subject-list"></datalist>
+                             </div>
                         </div>
                     </div>
                     
@@ -365,7 +408,7 @@
                         <!-- Camera Input -->
                         <div id="input-camera" class="flex flex-col items-center flex-grow justify-center">
                             <div class="w-full aspect-[4/3] bg-gray-200 dark:bg-gray-600 rounded-lg overflow-hidden relative mb-3 shadow-inner">
-                                <video id="capture-video" class="w-full h-full object-cover transform scale-x-[-1]" autoplay playsinline></video>
+                                <video id="capture-video" class="w-full h-full object-cover video-mirror" autoplay playsinline></video>
                                 <canvas id="capture-canvas" class="hidden"></canvas>
                                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
                                     <div class="w-32 h-40 border-2 border-white/50 rounded-full border-dashed"></div>
@@ -472,7 +515,6 @@
                 if (typeof faceapi === 'undefined') {
                     alert('Face-api.js failed to load.'); return;
                 }
-                // Load smaller models for speed
                 const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
                 await Promise.all([
                     faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URL),
@@ -502,13 +544,37 @@
         // --- SUBJECTS MANAGEMENT ---
         function loadSavedSubjects() {
             const subjects = JSON.parse(localStorage.getItem(SUBJECTS_KEY)) || [];
-            const dataList = document.getElementById('subject-list');
-            dataList.innerHTML = '';
-            subjects.forEach(sub => {
-                const option = document.createElement('option');
-                option.value = sub;
-                dataList.appendChild(option);
-            });
+            
+            // Update all datalists
+            const updateList = (id) => {
+                const dataList = document.getElementById(id);
+                if(dataList) {
+                    dataList.innerHTML = '';
+                    subjects.forEach(sub => {
+                        const option = document.createElement('option');
+                        option.value = sub;
+                        dataList.appendChild(option);
+                    });
+                }
+            };
+            
+            updateList('subject-list');
+            updateList('modal-subject-list');
+            
+            // Update Dashboard Filter
+            const filter = document.getElementById('dashboard-subject-filter');
+            if(filter) {
+                const currentVal = filter.value;
+                // Keep "All" option
+                filter.innerHTML = '<option value="">ทุกรายวิชา</option>';
+                subjects.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.text = sub;
+                    filter.appendChild(option);
+                });
+                filter.value = currentVal;
+            }
         }
 
         function saveSubject(subjectName) {
@@ -516,6 +582,7 @@
             let subjects = JSON.parse(localStorage.getItem(SUBJECTS_KEY)) || [];
             if (!subjects.includes(subjectName)) {
                 subjects.push(subjectName);
+                subjects.sort();
                 localStorage.setItem(SUBJECTS_KEY, JSON.stringify(subjects));
                 loadSavedSubjects(); // refresh list
             }
@@ -524,7 +591,6 @@
         // --- ADMIN / AUTH ---
         function checkAdminAccess(tabName) {
             targetTabAfterAuth = tabName;
-            // Open Modal
             const modal = document.getElementById('admin-modal');
             modal.classList.remove('hidden');
             setTimeout(() => {
@@ -553,6 +619,7 @@
                 closeAdminModal();
                 if(targetTabAfterAuth === 'manage') {
                     switchTab('manage');
+                    setTimeout(() => openStudentModal(), 100);
                 } else if (targetTabAfterAuth === 'setup') {
                     document.getElementById('setup-modal').style.display = 'flex';
                 }
@@ -678,8 +745,14 @@
             if (students.length > 0) {
                 document.getElementById('absence-management-section').classList.remove('hidden');
                 
-                // Group by Class for better view? Or just list. Let's list but sort by class.
-                const sortedStudents = [...students].sort((a, b) => a.class.localeCompare(b.class));
+                // Group by Class, sort by No. if available
+                const sortedStudents = [...students].sort((a, b) => {
+                    if (a.class !== b.class) return a.class.localeCompare(b.class);
+                    // Sort by No if available
+                    const noA = parseInt(a.no) || 999;
+                    const noB = parseInt(b.no) || 999;
+                    return noA - noB;
+                });
 
                 sortedStudents.forEach(student => {
                     const checkedInRecord = checkedInToday.get(student.studentid);
@@ -705,7 +778,7 @@
                             <img src="${student.imagedatabase64 || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full object-cover border border-gray-200">
                             <div>
                                 <p class="font-bold text-sm text-gray-800 dark:text-gray-200">${student.name}</p>
-                                <p class="text-xs text-gray-500">${student.studentid} | ${student.class}</p>
+                                <p class="text-xs text-gray-500">เลขที่ ${student.no || '-'} | ${student.class}</p>
                             </div>
                         </div>
                         ${statusHtml}
@@ -726,6 +799,7 @@
                 id: student.studentid, 
                 name: student.name, 
                 class: student.class, 
+                no: student.no,
                 timestamp: new Date().toISOString(), 
                 location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', 
                 status: status,
@@ -763,6 +837,7 @@
                         id: student.studentid, 
                         name: student.name, 
                         class: student.class, 
+                        no: student.no,
                         timestamp, 
                         location, 
                         status: 'ขาด',
@@ -773,7 +848,6 @@
             });
 
             if (recordsToSave.length > 0) {
-                // Show saving state
                 const saveBtn = document.querySelector('button[onclick="finishAttendance()"]');
                 const originalText = saveBtn.innerHTML;
                 saveBtn.disabled = true;
@@ -785,12 +859,11 @@
                 saveBtn.innerHTML = originalText;
 
                 if (response.success) {
-                    // Success Animation or Alert
                     alert(`บันทึกข้อมูลวิชา "${currentSubject}" เรียบร้อยแล้ว`);
                     checkedInToday.clear();
                     document.getElementById('absence-management-section').classList.add('hidden');
                     document.getElementById('start-scan-section').classList.remove('hidden');
-                    document.getElementById('subject-input').value = ''; // Clear subject
+                    document.getElementById('subject-input').value = ''; 
                     switchTab('dashboard');
                 } else {
                     alert('เกิดข้อผิดพลาดในการบันทึก: ' + response.error);
@@ -807,8 +880,14 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
+                // Force play if browser policy blocks autoplay
+                try {
+                    await video.play();
+                } catch (playErr) {
+                    console.warn("Autoplay blocked, user interaction might be needed.", playErr);
+                }
             } catch (err) {
-                alert(`ไม่สามารถเปิดกล้องได้: ${err.name}`);
+                alert(`ไม่สามารถเปิดกล้องได้: ${err.name} (กรุณาใช้ HTTPS หรือ Localhost)`);
                 stopScanning(false);
             }
         }
@@ -818,12 +897,21 @@
             document.getElementById('video-wrapper').classList.remove('hidden');
             const video = document.getElementById('video');
             const overlay = document.getElementById('overlay');
-            const displaySize = { width: video.clientWidth, height: video.clientHeight };
-            faceapi.matchDimensions(overlay, displaySize);
+            
+            // Fix: Check dimensions immediately
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+                const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                faceapi.matchDimensions(overlay, displaySize);
+            }
 
             if (recognitionInterval) clearInterval(recognitionInterval);
             recognitionInterval = setInterval(async () => {
                 if (!isScanning) return;
+                
+                // Re-check dimensions in case of resize or late load
+                const displaySize = { width: video.clientWidth, height: video.clientHeight };
+                faceapi.matchDimensions(overlay, displaySize);
+                
                 const detections = await faceapi.detectAllFaces(video).withFaceLandmarks().withFaceDescriptors();
                 const resizedDetections = faceapi.resizeResults(detections, displaySize);
                 overlay.getContext('2d').clearRect(0, 0, overlay.width, overlay.height);
@@ -880,7 +968,8 @@
             const record = { 
                 id: student.studentid, 
                 name: student.name, 
-                class: student.class, 
+                class: student.class,
+                no: student.no, 
                 timestamp: new Date().toISOString(), 
                 location: currentGeoLocation ? `${currentGeoLocation.lat},${currentGeoLocation.lng}` : 'N/A', 
                 status: 'มาเรียน',
@@ -916,27 +1005,30 @@
                 const sortedClasses = Object.keys(grouped).sort();
 
                 if (sortedClasses.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-500">ไม่พบข้อมูลนักเรียน</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500">ไม่พบข้อมูลนักเรียน</td></tr>`;
                 } else {
                     sortedClasses.forEach(className => {
-                        // Class Header Row
                         const headerRow = document.createElement('tr');
                         headerRow.className = "bg-purple-100 dark:bg-purple-900/40";
                         headerRow.innerHTML = `
-                            <td colspan="4" class="p-3 font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                            <td colspan="6" class="p-3 font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
                                 <i data-lucide="layers" class="w-4 h-4"></i> ห้องเรียน: ${className}
                             </td>
                         `;
                         tbody.appendChild(headerRow);
 
-                        // Student Rows
-                        grouped[className].forEach(student => {
+                        // Sort by Number (No)
+                        const classStudents = grouped[className].sort((a,b) => (parseInt(a.no)||999) - (parseInt(b.no)||999));
+
+                        classStudents.forEach(student => {
                             const row = document.createElement('tr');
                             row.className = "hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700";
                             row.innerHTML = `
                                 <td class="p-4"><img src="${student.imagedatabase64 || 'https://placehold.co/40x40'}" class="w-10 h-10 rounded-full object-cover border border-gray-200"></td>
+                                <td class="p-4 font-medium text-gray-600 dark:text-gray-400">${student.no || '-'}</td>
                                 <td class="p-4 font-mono text-sm text-gray-600 dark:text-gray-400">${student.studentid}</td>
                                 <td class="p-4 font-medium text-gray-800 dark:text-gray-200">${student.name}</td>
+                                <td class="p-4 text-sm text-gray-600 dark:text-gray-400">${student.subject || '-'}</td>
                                 <td class="p-4 text-center">
                                     <button onclick="editStudent(${student.rowIndex})" class="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
                                     <button onclick="deleteStudent(${student.rowIndex})" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -951,9 +1043,6 @@
             loading.style.display = 'none';
         }
 
-        // ... [Include other CRUD functions: openStudentModal, handleStudentFormSubmit, deleteStudent etc. Same logic as original but with UI updates] ...
-        // Re-implementing CRUD to ensure they work with new UI IDs
-        
         function openStudentModal(student = null) {
             const form = document.getElementById('student-form');
             form.reset();
@@ -966,9 +1055,11 @@
             if (student) {
                 document.getElementById('modal-title').innerHTML = '<i data-lucide="edit" class="text-blue-500"></i> แก้ไขข้อมูลนักเรียน';
                 document.getElementById('student-row-index').value = student.rowIndex;
+                document.getElementById('student-no').value = student.no || '';
                 document.getElementById('student-id').value = student.studentid;
                 document.getElementById('student-name').value = student.name;
                 document.getElementById('student-class').value = student.class;
+                document.getElementById('student-subject').value = student.subject || '';
                 document.getElementById('student-image-data').value = student.imagedatabase64 || '';
                 
                 if (student.imagedatabase64) {
@@ -1008,12 +1099,17 @@
             
             const studentData = { 
                 rowIndex: document.getElementById('student-row-index').value, 
+                no: document.getElementById('student-no').value,
                 id: document.getElementById('student-id').value, 
                 name: document.getElementById('student-name').value, 
                 class: document.getElementById('student-class').value, 
+                subject: document.getElementById('student-subject').value,
                 imageData: document.getElementById('student-image-data').value 
             };
             
+            // Save subject to list for autocomplete
+            if(studentData.subject) saveSubject(studentData.subject);
+
             if (!studentData.imageData) { 
                 alert('กรุณาถ่ายภาพหรืออัปโหลดรูปภาพ');
                 submitBtn.disabled = false; submitBtn.innerText = 'บันทึก'; 
@@ -1118,12 +1214,19 @@
         }
 
         function renderDashboard() {
-            const selectedDate = new Date(document.getElementById('dashboard-date').value);
+            const dateInput = document.getElementById('dashboard-date').value;
+            const subjectFilter = document.getElementById('dashboard-subject-filter').value;
+            
+            const selectedDate = new Date(dateInput);
             selectedDate.setHours(0,0,0,0);
+            
             const attendanceToday = attendance.filter(rec => { 
                 const recDate = new Date(rec.timestamp); 
                 recDate.setHours(0,0,0,0); 
-                return recDate.getTime() === selectedDate.getTime(); 
+                const sameDate = recDate.getTime() === selectedDate.getTime();
+                const sameSubject = subjectFilter === "" || rec.subject === subjectFilter;
+                
+                return sameDate && sameSubject;
             });
 
             // Logic for late (After 8:30)
@@ -1196,7 +1299,7 @@
             try {
                 const response = await fetch(gasWebAppUrl, { 
                     method: 'POST', 
-                    mode: 'cors', // Changed to cors if script supports it, otherwise no-cors prevents reading response
+                    mode: 'cors', 
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
                     body: JSON.stringify(payload) 
                 });
